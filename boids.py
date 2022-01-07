@@ -88,6 +88,8 @@ class Boid:
         count = 0
 
         for i, d in enumerate(self.dist):
+            if not BOIDS[i].figure.visible:
+                continue
             if d > 0 and d < self.cohesionRange:
                 c += BOIDS[i].position
                 count += 1
@@ -105,6 +107,8 @@ class Boid:
         count = 0
 
         for i, d in enumerate(self.dist):
+            if not BOIDS[i].figure.visible:
+                continue
             if d > 0 and d < self.separationRange:
                 diff = self.position - BOIDS[i].position
                 k = math.pow((self.separationRange - d)/self.separationRange, 2)
@@ -121,6 +125,8 @@ class Boid:
         count = 0
 
         for i, d in enumerate(self.dist):
+            if not BOIDS[i].figure.visible:
+                continue
             if d > 0 and d < self.alignementRange:
                 c += BOIDS[i].velocity
                 count += 1
@@ -133,6 +139,9 @@ class Boid:
     def attraction(self):
         """ Calculates gravity forces between particle and all ohter spheres """
         global SPHERES
+
+        if not self.figure.visible:
+            return
 
         force = vp.vector(0, 0, 0)
         for obj in SPHERES:
