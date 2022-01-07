@@ -15,6 +15,7 @@ BOID_SIZE = 4
 BOID_MASS = 1
 
 SPHERES = []
+SPHERE_SIZE = 20
 SPHERE_MASS = 1e5
 
 
@@ -24,12 +25,18 @@ vp.scene.height = HEIGHT
 
 
 def gravitationalForce(p1, p2):
+    """ Returns distance between points (p1, p2) and gravity force """
     G = 1 # real-world value is : G = 6.67e-11
     rVector = p1 - p2
     rMagnitude = vp.mag(rVector)
     rHat = rVector / rMagnitude
     F = - rHat * G * BOID_MASS * SPHERE_MASS /rMagnitude**2
-    return F
+    return rMagnitude, F
+
+
+def get_alive_particles():
+    """ Returns number of alive (visible) particles """
+    return len([x for x in BOIDS if x.figure.visible])
 
 
 class Boid:
@@ -65,6 +72,7 @@ class Boid:
             trail_type="curve")
 
     def update_distances(self):
+        """ Calculates distances between the given and all other particles """
         global BOIDS
 
         self.dist = []
@@ -73,6 +81,7 @@ class Boid:
             self.dist.append(d)
 
     def cohesion(self):
+        """ Calculates cohesion adjustement (geometric center) """
         global BOIDS
 
         c = vp.vector(0, 0, 0)
@@ -89,6 +98,7 @@ class Boid:
         return c
 
     def separation(self):
+        """ Calculates separation adjustement (avoidance) """
         global BOIDS
 
         c = vp.vector(0, 0, 0)
@@ -104,6 +114,7 @@ class Boid:
         return vp.norm(c) * self.separationStrength
 
     def alignement(self):
+        """ Calculates velocity adjustement """
         global BOIDS
 
         c = vp.vector(0, 0, 0)
@@ -120,16 +131,21 @@ class Boid:
         return c
 
     def attraction(self):
+        """ Calculates gravity forces between particle and all ohter spheres """
         global SPHERES
 
         force = vp.vector(0, 0, 0)
         for obj in SPHERES:
-            force += gravitationalForce(self.position, obj.pos)
+            d, F = gravitationalForce(self.position, obj.pos)
+            force += F
+            if d <= SPHERE_SIZE:
+                self.figure.visible = False
         
         self.velocity += force * dt/BOID_MASS
         self.position += self.velocity * t + force * dt**2/BOID_MASS
 
     def check_borders(self, w, h):
+        """ Cyclic conditions (hypertorus) """
         changed = False
 
         if self.position.x < -w//2:
@@ -168,6 +184,7 @@ class Boid:
         self.position += self.velocity
 
         self.attraction()
+
         if vp.mag(self.velocity) > Boid.maxspeed:
             self.velocity = self.velocity/vp.mag(self.velocity) * Boid.maxspeed
 
@@ -175,13 +192,14 @@ class Boid:
 
         self.figure.pos = self.position
         self.figure.axis = vp.norm(self.velocity) * 4 * self.radius
+        aliveParticles.text = "{}".format(get_alive_particles())
 
 #==============================================================================
 # Interface handlers
 #==============================================================================
 def createSphere(ev):
     loc = ev.pos
-    obj = vp.sphere(pos=loc, radius=20, color=vp.color.cyan)
+    obj = vp.sphere(pos=loc, radius=SPHERE_SIZE, color=vp.color.cyan)
     SPHERES.append(obj)
 
 
@@ -240,6 +258,9 @@ alignementRangeReadout = vp.wtext(text=" {}".format(Boid.alignementRange))
 
 vp.scene.append_to_caption('\n')
 vp.checkbox(bind=show_trail, text="Show trail")
+
+vp.scene.append_to_caption("\tAlive particles =")
+aliveParticles = vp.wtext(text=" {}".format(NBOIDS))
 
 #==============================================================================
 # Bounding box
