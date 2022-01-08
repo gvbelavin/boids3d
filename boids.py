@@ -9,7 +9,7 @@ import math
 WIDTH = 1024
 HEIGHT = 768
 
-NBOIDS = 100
+NBOIDS = 150
 BOIDS = []
 BOID_SIZE = 4
 BOID_MASS = 1
@@ -77,26 +77,42 @@ class Boid:
         """ Calculates distances between the given and all other particles """
         global BOIDS
 
-        self.dist = []
+        maxRange = max(self.cohesionRange, self.separationRange, self.alignementRange)
+
+        # Particles within the maxRange distance
+        self.neighbors = []
+
         for obj in BOIDS:
-            d = mag(self.position - obj.position)
-            self.dist.append(d)
+            if self == obj:
+                continue
+
+            if not obj.figure.visible:
+                continue
+
+            dx = math.fabs(self.position.x - obj.position.x)
+            dy = math.fabs(self.position.y - obj.position.y)
+            dz = math.fabs(self.position.z - obj.position.z)
+
+            if dx > maxRange or dy > maxRange or dz > maxRange:
+                continue
+
+            d = (dx**2 + dy**2 + dz**2)**0.5
+            if d > maxRange:
+                continue
+
+            self.neighbors.append((obj, d))
 
     def cohesion(self):
         """ Calculates cohesion adjustement (geometric center) """
-        global BOIDS
-
         c = vector(0, 0, 0)
         count = 0
 
         if not self.figure.visible:
             return c
 
-        for i, d in enumerate(self.dist):
-            if not BOIDS[i].figure.visible:
-                continue
-            if d > 0 and d < self.cohesionRange:
-                c += BOIDS[i].position
+        for obj, d in self.neighbors:
+            if d < self.cohesionRange:
+                c += obj.position
                 count += 1
 
         if count:
@@ -106,19 +122,15 @@ class Boid:
 
     def separation(self):
         """ Calculates separation adjustement (avoidance) """
-        global BOIDS
-
         c = vector(0, 0, 0)
         count = 0
 
         if not self.figure.visible:
             return c
 
-        for i, d in enumerate(self.dist):
-            if not BOIDS[i].figure.visible:
-                continue
-            if d > 0 and d < self.separationRange:
-                diff = self.position - BOIDS[i].position
+        for obj, d in self.neighbors:
+            if d < self.separationRange:
+                diff = self.position - obj.position
                 k = math.pow((self.separationRange - d)/self.separationRange, 2)
                 c += diff * k
                 count += 1
@@ -127,19 +139,15 @@ class Boid:
 
     def alignement(self):
         """ Calculates velocity adjustement """
-        global BOIDS
-
         c = vector(0, 0, 0)
         count = 0
 
         if not self.figure.visible:
             return c
 
-        for i, d in enumerate(self.dist):
-            if not BOIDS[i].figure.visible:
-                continue
-            if d > 0 and d < self.alignementRange:
-                c += BOIDS[i].velocity
+        for obj, d in self.neighbors:
+            if d < self.alignementRange:
+                c += obj.velocity
                 count += 1
 
         if count:
@@ -149,8 +157,6 @@ class Boid:
 
     def attraction(self):
         """ Calculates gravity forces between particle and all ohter spheres """
-        global SPHERES
-
         if not self.figure.visible:
             return
 
