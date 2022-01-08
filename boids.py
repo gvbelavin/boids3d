@@ -1,4 +1,4 @@
-import vpython as vp
+from vpython import *
 import random
 import math
 
@@ -19,16 +19,16 @@ SPHERE_SIZE = 20
 SPHERE_MASS = 1e5
 
 
-vp.scene.title = "Modeling boids"
-vp.scene.width = WIDTH
-vp.scene.height = HEIGHT
+scene.title = "Modeling boids"
+scene.width = WIDTH
+scene.height = HEIGHT
 
 
 def gravitationalForce(p1, p2):
     """ Returns distance between points (p1, p2) and gravity force """
     G = 1 # real-world value is : G = 6.67e-11
     rVector = p1 - p2
-    rMagnitude = vp.mag(rVector)
+    rMagnitude = mag(rVector)
     rHat = rVector / rMagnitude
     F = - rHat * G * BOID_MASS * SPHERE_MASS /rMagnitude**2
     return rMagnitude, F
@@ -57,17 +57,19 @@ class Boid:
         self.velocity = velocity
         self.radius = radius
 
+        # Peek random color
         r = (random.randint(0, 1) + 1)/2
         g = (random.randint(0, 1) + 1)/2
         b = (random.randint(0, 1) + 1)/2
 
-        axis = vp.norm(self.velocity) * 4 * self.radius
+        # Make cone's length 4 times bigger than its radius
+        axis = 4 * norm(self.velocity) * self.radius
 
-        self.figure = vp.cone(
+        self.figure = cone(
             pos=self.position,
             axis=axis,
             radius=self.radius,
-            color=vp.vector(r, g, b),
+            color=vector(r, g, b),
             make_trail=False,
             trail_type="curve")
 
@@ -77,15 +79,18 @@ class Boid:
 
         self.dist = []
         for obj in BOIDS:
-            d = vp.mag(self.position - obj.position)
+            d = mag(self.position - obj.position)
             self.dist.append(d)
 
     def cohesion(self):
         """ Calculates cohesion adjustement (geometric center) """
         global BOIDS
 
-        c = vp.vector(0, 0, 0)
+        c = vector(0, 0, 0)
         count = 0
+
+        if not self.figure.visible:
+            return c
 
         for i, d in enumerate(self.dist):
             if not BOIDS[i].figure.visible:
@@ -95,7 +100,7 @@ class Boid:
                 count += 1
 
         if count:
-            return vp.norm(c/count - self.position) * self.cohesionStrength
+            return norm(c/count - self.position) * self.cohesionStrength
 
         return c
 
@@ -103,8 +108,11 @@ class Boid:
         """ Calculates separation adjustement (avoidance) """
         global BOIDS
 
-        c = vp.vector(0, 0, 0)
+        c = vector(0, 0, 0)
         count = 0
+
+        if not self.figure.visible:
+            return c
 
         for i, d in enumerate(self.dist):
             if not BOIDS[i].figure.visible:
@@ -115,14 +123,17 @@ class Boid:
                 c += diff * k
                 count += 1
 
-        return vp.norm(c) * self.separationStrength
+        return norm(c) * self.separationStrength
 
     def alignement(self):
         """ Calculates velocity adjustement """
         global BOIDS
 
-        c = vp.vector(0, 0, 0)
+        c = vector(0, 0, 0)
         count = 0
+
+        if not self.figure.visible:
+            return c
 
         for i, d in enumerate(self.dist):
             if not BOIDS[i].figure.visible:
@@ -132,7 +143,7 @@ class Boid:
                 count += 1
 
         if count:
-            return vp.norm(c - self.velocity) * self.alignementStrength
+            return norm(c - self.velocity) * self.alignementStrength
 
         return c
 
@@ -143,46 +154,42 @@ class Boid:
         if not self.figure.visible:
             return
 
-        force = vp.vector(0, 0, 0)
+        force = vector(0, 0, 0)
         for obj in SPHERES:
             d, F = gravitationalForce(self.position, obj.pos)
             force += F
+            # Check for collision
             if d <= SPHERE_SIZE:
                 self.figure.visible = False
         
         self.velocity += force * dt/BOID_MASS
-        self.position += self.velocity * t + force * dt**2/BOID_MASS
+        self.position += self.velocity * dt + force * dt**2/BOID_MASS
 
     def check_borders(self, w, h):
         """ Cyclic conditions (hypertorus) """
-        changed = False
-
         if self.position.x < -w//2:
+            self.figure.clear_trail()
             self.position.x += w
-            changed = True
 
         if self.position.x > w//2:
+            self.figure.clear_trail()
             self.position.x -= w
-            changed = True
 
         if self.position.y < -h//2:
+            self.figure.clear_trail()
             self.position.y += h
-            changed = True
 
         if self.position.y > h//2:
+            self.figure.clear_trail()
             self.position.y -= h
-            changed = True
 
         if self.position.z < -h//2:
+            self.figure.clear_trail()
             self.position.z += h
-            changed = True
 
         if self.position.z > h//2:
-            self.position.z -= h
-            changed = True
-
-        if changed and obj.figure.make_trail:
             self.figure.clear_trail()
+            self.position.z -= h
 
     def move(self, w, h):
         self.update_distances()
@@ -190,17 +197,17 @@ class Boid:
         self.velocity += self.cohesion()
         self.velocity += self.separation()
         self.velocity += self.alignement()
+
+        if mag(self.velocity) > Boid.maxspeed:
+            self.velocity = self.velocity/mag(self.velocity) * Boid.maxspeed
+
         self.position += self.velocity
 
         self.attraction()
-
-        if vp.mag(self.velocity) > Boid.maxspeed:
-            self.velocity = self.velocity/vp.mag(self.velocity) * Boid.maxspeed
-
         self.check_borders(w, h)
 
         self.figure.pos = self.position
-        self.figure.axis = vp.norm(self.velocity) * 4 * self.radius
+        self.figure.axis = 4 * norm(self.velocity) * self.radius
         aliveParticles.text = "{}".format(get_alive_particles())
 
 #==============================================================================
@@ -208,7 +215,7 @@ class Boid:
 #==============================================================================
 def createSphere(ev):
     loc = ev.pos
-    obj = vp.sphere(pos=loc, radius=SPHERE_SIZE, color=vp.color.cyan)
+    obj = sphere(pos=loc, radius=SPHERE_SIZE, color=color.cyan)
     SPHERES.append(obj)
 
 
@@ -235,47 +242,47 @@ def set_alignementRange(ev):
 #==============================================================================
 # Interface handlers binding
 #==============================================================================
-vp.scene.bind('click', createSphere)
+scene.bind('click', createSphere)
 
-vp.scene.append_to_caption('\n')
-cohesionRange = vp.slider(bind=set_cohesionRange,
+scene.append_to_caption('\n')
+cohesionRange = slider(bind=set_cohesionRange,
     vertical=False,
     min=10, max=150, step=10,
     value=100,
     length=200, width=10)
-vp.scene.append_to_caption("Cohesion range =")
-cohesionRangeReadout = vp.wtext(text=" {}".format(Boid.cohesionRange))
+scene.append_to_caption("Cohesion range =")
+cohesionRangeReadout = wtext(text=" {}".format(Boid.cohesionRange))
 
 
-vp.scene.append_to_caption('\n')
-separationRange = vp.slider(bind=set_separationRange,
+scene.append_to_caption('\n')
+separationRange = slider(bind=set_separationRange,
     vertical=False,
     min=10, max=150, step=10,
     value=50,
     length=200, width=10)
-vp.scene.append_to_caption("Separation range =")
-separationRangeReadout = vp.wtext(text=" {}".format(Boid.separationRange))
+scene.append_to_caption("Separation range =")
+separationRangeReadout = wtext(text=" {}".format(Boid.separationRange))
 
-vp.scene.append_to_caption('\n')
-alignementRange = vp.slider(bind=set_alignementRange,
+scene.append_to_caption('\n')
+alignementRange = slider(bind=set_alignementRange,
     vertical=False,
     min=10, max=150, step=10,
     value=100,
     length=200, width=10)
-vp.scene.append_to_caption("Alignement range =")
-alignementRangeReadout = vp.wtext(text=" {}".format(Boid.alignementRange))
+scene.append_to_caption("Alignement range =")
+alignementRangeReadout = wtext(text=" {}".format(Boid.alignementRange))
 
-vp.scene.append_to_caption('\n')
-vp.checkbox(bind=show_trail, text="Show trail")
+scene.append_to_caption('\n')
+checkbox(bind=show_trail, text="Show trail")
 
-vp.scene.append_to_caption("\tAlive particles =")
-aliveParticles = vp.wtext(text=" {}".format(NBOIDS))
+scene.append_to_caption("\tAlive particles =")
+aliveParticles = wtext(text=" {}".format(NBOIDS))
 
 #==============================================================================
 # Bounding box
 #==============================================================================
-mybox = vp.box(pos=vp.vector(0, 0, 0),
-    length=WIDTH, height=WIDTH, width=HEIGHT, opacity=0.1) 
+mybox = box(pos=vector(0, 0, 0),
+    length=WIDTH, height=HEIGHT, width=HEIGHT, opacity=0.1) 
 
 #==============================================================================
 # Generate boids
@@ -289,7 +296,7 @@ for i in range(NBOIDS):
     vy = random.randint(-2, 2)
     vz = random.randint(-2, 2)
 
-    obj = Boid(vp.vector(x, y, z), vp.vector(vx, vy, vz), BOID_SIZE)
+    obj = Boid(vector(x, y, z), vector(vx, vy, vz), BOID_SIZE)
     BOIDS.append(obj)
 
 #==============================================================================
@@ -299,7 +306,7 @@ t = 0
 dt = 0.001 #The step size. This should be a small number
 
 while True:
-    vp.rate(1000)
+    rate(1000)
     for obj in BOIDS:
         obj.move(WIDTH, HEIGHT)
     t += dt
