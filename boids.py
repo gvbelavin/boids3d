@@ -73,8 +73,8 @@ class Boid:
             make_trail=False,
             trail_type="curve")
 
-    def update_distances(self):
-        """ Calculates distances between the given and all other particles """
+    def update_neighbors(self):
+        """ Find the nearest neighbors """
         global BOIDS
 
         maxRange = max(self.cohesionRange, self.separationRange, self.alignementRange)
@@ -198,7 +198,7 @@ class Boid:
             self.position.z -= h
 
     def move(self, w, h):
-        self.update_distances()
+        self.update_neighbors()
 
         self.velocity += self.cohesion()
         self.velocity += self.separation()
@@ -214,6 +214,7 @@ class Boid:
 
         self.figure.pos = self.position
         self.figure.axis = 4 * norm(self.velocity) * self.radius
+
         aliveParticles.text = "{}".format(get_alive_particles())
 
 #==============================================================================
